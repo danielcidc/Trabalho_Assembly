@@ -52,7 +52,7 @@ segment code
 		;bolinha animada
 		MOV     byte[cor], preto
 		CALL     interface_bolinha 
-		CALL     raquete_Mover
+		CALL     raqueteMover
 		CALL     interface_raquete 
 		
 		;ajustando a posição da raquete no eixo XY
@@ -95,13 +95,80 @@ segment code
 		    CALL		colisao
 			CALL 		int_15h
 			JMP			animation	
+			
+			
+	;-------- DIVISÓRIAS DA INTERFACE --------;
+	interface_bordas:
+			
+		; Preparação para começar a desenhar as bordas 
+		xor			ax,ax
+		mov			cx,639
+		mov			dx,479
+		mov			byte[cor],branco_intenso
 		
-	
-	
-	
+		; Borda direita 
+		push		cx
+		push		ax
+		push		cx
+		push		dx
+		
+		; Borda superior 
+		push		cx
+		push		dx
+		push		ax
+		push		dx
+				
+		; Borda esquerda 
+		push		ax
+		push		dx
+		push		ax
+		push		ax
+		
+		; Borda do meio 
+		push		ax
+		push		dx
+		push		cx
+		push		dx
+				
+
+		; Desenhando as bordas
+		call        line
+		call		line
+		call		line
+		call		line
+		ret
+
+
+	interface_bordaDireita:	
+		; Salvando o contexto
+		push		ax
+		push		bx
+		push		cx
+		push		dx
+		
+		; Preparação para começar a desenhar as bordas 
+		xor			ax,ax
+		mov			cx,639
+		mov			dx,479
+		mov			byte[cor],branco
+
+		; Desenhando a borda direita
+		push		cx
+		push		ax
+		push		cx
+		push		dx
+		call		line 
+
+		; Recuperando o contexto
+		pop			dx
+		pop			cx
+		pop			bx
+		pop			ax
+		ret
+		
 	;---------- CONSTRUTOR DE LINHAS (responsável de desenhar as linhas na interface) ----------; 
-		line:
-			PUSH		BP
+	line:
+	   		PUSH		BP
 			MOV		BP,SP
 			PUSHF                        ;coloca os flags na pilha
 			PUSH 		AX
@@ -210,9 +277,6 @@ segment code
 			sub		dx,bx
 			mov		[deltay],dx
 			pop		dx
-
-
-
 			mov		si,bx
 	line6:
 			push		dx
@@ -254,12 +318,12 @@ segment code
 			pop		bx
 			pop		ax
 			popf
-			pop		
-		
+			pop		bp
+			ret		8 
 		
 		; ---------- PLOT XY (definindo os parâmetros de coordenadas) -------------------- ;
 		
-		plot_xy:
+	plot_xy:
 		PUSH    BP
 		MOV		BP,SP
     ;Salvando o contexto, empilhando registradores		
@@ -292,7 +356,7 @@ segment code
 		
 		; ------------ CURSOR (construtor do cursor do mouse) ----------; 
 		
-		cursor:
+	cursor:
     ;Salvando o contexto, empilhando registradores
 		PUSHF
 		PUSH 	AX
@@ -320,7 +384,7 @@ segment code
 		
 		
 		;------------ INTERFACE DA BOLINHA --------------;
-		interface_bolinha:
+	interface_bolinha:
 		MOV			CX, [bola_posicaoX]
 		PUSH		CX
 		MOV			CX, [bola_posicaoY]
@@ -455,15 +519,15 @@ segment code
 	    POP		cx
 	    POP		bx
 	    POP		ax
-	    POPf
+	    POPF
 	    POP		bp
 	    RET		6
 	
 	
-	;--------- INTERFACE DA RAQUETE ------------;
+	;-------- INTERFACE DA RAQUETE --------;
 	interface_raquete:
 		PUSH		CX
-		MOV			byte[cor],branco_intenso
+		MOV			byte[cor], branco_intenso
 		PUSH		word[raquete_posicaoX]
 		PUSH		word[raquete_posicaoY]
 		MOV			CX,[raquete_posicaoY]
@@ -475,48 +539,318 @@ segment code
 		POP			CX
 		RET
 
-    
+    ;-------- ROTINA PARA AJUSTAR A RAQUETE --------;
+	raqueteAjusta:
+		MOV			byte[cor],branco
+		PUSH		word 598
+		PUSH		word 431
+		PUSH		word 601
+		PUSH		word 431
+		CALL 		line
+		RET
+		
+	;-------- ROTINA PARA MOVER A RAQUETE --------;
+	raqueteMover:
+		xor			ax,ax
+		mov			al,byte[raquete_checa]		
+		cmp			al,0
+		ja			raquetePara
+		mov			dx,[raquete_posicaoX]
+		mov			cx,[raquete_movimento]
+		mov			ah,[raquete_velocidade]
+		inc			ah
+		cmp			ah,1
+		jz			raqueteFinal
+		ja			raquetePosicao
+
+		; invertendo o movimento da raquete 
+		raqueteMoveInversamente:
+			cmp			dx,10
+			jb			raqueteFinal
+
+			mov			byte[cor],preto 			;apagando a posição que estava anteriormente
+			mov			ax,[raquete_posicaoY]
+			add			ax,raquete_tamanho+1		;ascendendo em uma posição de 1 pixel a mais 
+			push		word[raquete_posicaoX]
+			push		ax
+			sub			ax,[raquete_movimento]
+			push		word[raquete_posicaoX]
+			push		ax
+			call 		line		
+		
+		;mudando para a nova posição
+			sub			[raquete_posicaoX],cx
+			mov			byte[raquete_checa],1	; pode se mover a cada 1(+1) frames
+			jmp			raqueteFinal
+			
+		raquetePosicao:
+			cmp			dx,371
+			ja			raqueteFinal
+
+			mov			byte[cor],preto			;apagando a posição que estava anteriormente
+			mov			ax,[raquete_posicaoX]
+			push		word[raquete_posicaoY]
+			push		ax
+			add			ax,[raquete_movimento]
+			dec			ax					
+			push		word[raquete_posicaoY]
+			push		ax
+			call 		line
+			
+		;Mudando para a nova posição
+			add			[raquete_posicaoX],cx
+			mov			byte[raquete_checa],1
+			jmp			raqueteFinal
+		raquetePara:
+			dec			byte[raquete_checa]
+		raqueteFinal:
+			mov			byte[raquete_velocidade],0
+			ret
+			
+	;-------- TRATAMENTO DAS COLISÕES --------;
+	colisao:		
+		; Verificando colisão com a bola
+		mov 		bx,[bola_posicaoX]
+		mov			dx,[bola_posicaoY]
+
+		; Verificando colisão com a raquete em X
+		cmp			bx,600-bola_raio
+		jb			colisaoX
+		cmp			bx,595	
+		ja			colisaoX
+
+		; Verificando colisão com a raquete em X
+		mov			ax,[raquete_posicaoX]
+		cmp			ax,7
+		jb	raqueteColisaoNegada		
+		sub			ax,7	
+		raqueteColisaoNegada:
+			cmp			dx,ax
+			jb			colisaoX
+			add			ax,14+raquete_tamanho
+			cmp			dx,ax
+			ja			colisaoX
+		raqueteColisaoEfetivada:
+			neg			byte[bola_velocidadeX]
+			inc			byte[raquete_colisao]
+			jmp			colisaoY
+		
+		; Verificando colisão com as paredes
+		colisaoX:
+			cmp			bx,639-bola_raio
+			jae			paredeDireitaColisaoEfetivada
+			cmp			bx,1+bola_raio
+			jbe			colisaoEfetivadaX
+			jmp			colisaoY	
+			
+		paredeDireitaColisaoEfetivada:
+			mov			byte[cor],preto
+			call		interface_bolinha
+			pop			dx
+			mov			word[bola_posicaoX],23
+			call		interface_bordaDireita
+			jmp			colisaoY
+			colisaoEfetivadaX:
+			neg			byte[bola_velocidadeX]
+
+		colisaoY:
+			cmp			dx,429-bola_raio
+			jae			colisaoEfetivadaY
+			cmp			dx,1+bola_raio
+			jbe			colisaoEfetivadaY
+			mov			byte[bola_colisaoY],0
+			jmp			colisaoRET
+			colisaoEfetivadaY:
+			neg			byte[bola_velocidadeY]
+			mov			byte[bola_colisaoY],1
+		colisaoRET:
+			ret
+			
+			
+	;-------- SAIR DO JOGO --------;
+	sai:	
+		; Restaurando a tabela de interrupções
+
+		XOR     AX, AX
+		MOV     ES, AX
+		MOV     AX, [cs_dos]
+		MOV     [ES:int9*4+2], AX
+		MOV     AX, [offset_dos]
+		MOV     [ES:int9*4], AX 
+
+		; Saindo do progama
+		mov    	ah,08h
+		int     21h
+	    mov  	ah,0   			; set video mode
+	    mov  	al,[modo_anterior]   	; modo anterior
+	    int  	10h
+		mov     ax,4c00h
+		int     21h	
+			
+			
+	;-------- USO DO KeyInt ---------;
+	keyint:
+		PUSH    AX
+		push    bx
+		push    ds
+		mov     ax,data
+		mov     ds,ax
+		IN      AL, kb_data
+		inc     WORD [p_i]
+		and     WORD [p_i],7
+		mov     bx,[p_i]
+		mov     [bx+tecla],al
+		IN      AL, kb_ctl
+		OR      AL, 80h
+		OUT     kb_ctl, AL
+		AND     AL, 7Fh
+		OUT     kb_ctl, AL
+		MOV     AL, eoi
+		OUT     pictrl, AL
+		pop     ds
+		pop     bx
+		POP     AX
+		IRET
+		
+	;-------- TESTA A TECLA VIA A INTERRUPÇÃO DO HARDWARE --------;
+	testateclaHardware:	
+		mov     ax,[p_i]
+		CMP     ax,[p_t]
+		JE      testateclaRetorna
+
+		inc     word[p_t]
+		and     word[p_t],7
+		mov     bx,[p_t]
+
+		XOR     AX, AX
+		MOV     AL, [bx+tecla]
+
+		; Comparação Hardware para Sair
+		cmp al, 1Fh
+		je sai	
+
+		; Comparação Hardware para mover a raquete para cima
+		cmp al, 16h
+		je 			testateclaU		;
+
+		; Comparação Hardware para mover a raquete para baixo
+		cmp			al,20h
+		je 			testateclaD		;
+
+
+		; Rotina para retornar/ continuar a execução do programa 
+		testateclaRetorna:
+			ret
+
+		; Rotina para mover a raquete para cima 
+		testateclaU:
+			mov			byte[raquete_velocidade],1
+			jmp			testateclaRetorna
+
+		; Rotina para mover a raquete para baixo 
+		testateclaD:
+			mov			byte[raquete_velocidade],-1
+			jmp			testateclaRetorna
+		
+	;-------- USO DO INT 15h --------;
+	int_15h:		
+		PUSH		cx			
+		XOR cx,cx
+		MOV dx, [modo_velocidade]
+		MOV ah,86h
+		INT 15h
+		POP		cx
+		RET
 
 ;*******************************************************************
 
 segment data
 
-cor		db		branco_intenso
+    cor		db		branco_intenso
 
-;	I R G B COR
-;	0 0 0 0 preto
-;	0 0 0 1 azul
-;	0 0 1 0 verde
-;	0 0 1 1 cyan
-;	0 1 0 0 vermelho
-;	0 1 0 1 magenta
-;	0 1 1 0 marrom
-;	0 1 1 1 branco
-;	1 0 0 0 cinza
-;	1 0 0 1 azul claro
-;	1 0 1 0 verde claro
-;	1 0 1 1 cyan claro
-;	1 1 0 0 rosa
-;	1 1 0 1 magenta claro
-;	1 1 1 0 amarelo
-;	1 1 1 1 branco intenso	
+    ;	I R G B COR
+    ;	0 0 0 0 preto
+    ;	0 0 0 1 azul
+    ;	0 0 1 0 verde
+    ;	0 0 1 1 cyan
+    ;	0 1 0 0 vermelho
+    ;	0 1 0 1 magenta
+    ;	0 1 1 0 marrom
+    ;	0 1 1 1 branco
+    ;	1 0 0 0 cinza
+    ;	1 0 0 1 azul claro
+    ;	1 0 1 0 verde claro
+    ;	1 0 1 1 cyan claro
+    ;	1 1 0 0 rosa
+    ;	1 1 0 1 magenta claro
+    ;	1 1 1 0 amarelo
+    ;	1 1 1 1 branco intenso	
 
-preto		    equ		0
-azul		    equ		1
-verde		    equ		2
-cyan		    equ		3
-vermelho	    equ		4
-magenta		    equ		5
-marrom		    equ		6
-branco		    equ		7
-cinza		    equ		8
-azul_claro	    equ		9
-verde_claro	    equ		10
-cyan_claro	    equ		11
-rosa		    equ		12
-magenta_claro	equ		13
-amarelo		    equ		14
-branco_intenso	equ		15
+    preto		    equ		0
+    azul		    equ		1
+    verde		    equ		2
+    cyan		    equ		3
+    vermelho	    equ		4
+    magenta		    equ		5
+    marrom		    equ		6
+    branco		    equ		7
+    cinza		    equ		8
+    azul_claro	    equ		9
+    verde_claro	    equ		10
+    cyan_claro	    equ		11
+    rosa		    equ		12
+    magenta_claro	equ		13
+    amarelo		    equ		14
+    branco_intenso	equ		15
+
+;---- Variáveis auxiliares (line.asm) ----;
+    linha    dw    0
+	coluna    dw    0
+	deltax    dw    0
+	deltay    dw    0
+	
+;---- Variáveis para o modo de animação / tela ----;
+    modo_anterior    db    0
+    modo_pixel    dw    0
+	modo_velocidade    dw    9999h
+	
+;---- Variáveis para a raquete ----;
+    raquete_posicaoX    dw    320
+	raquete_posicaoYASCII	db	'000'
+	raquete_posicaoY        dw  48 
+	raquete_tamanho		    equ	50
+	raquete_velocidade		db  0
+	raquete_movimento		db  10
+	raquete_checa			db  0
+	raquete_colisao			db	0
+	
+;---- Variáveis para a bolinha ----;
+    bola_posicaoX			dw  23 ; Posição inicial 
+	bola_posicaoXASCII		db	'000'
+	bola_velocidadeX		db  1
+	bola_colisaoX	db  0	; Bit que indica se houve colisão com parede em x no frame anterior
+	bola_posicaoY			dw 	239 ; Posição inicial y
+	bola_posicaoYASCII		db	'000'
+	bola_velocidadeY		db  -1
+	bola_colisaoY	db  0	; Bit que indica se houve colisão com parede em y no frame anterior
+
+	bola_movimento      	dw  6
+	bola_raio				equ 10
+	
+;---- Variáveis para a rotina KeyInt ----;
+
+	kb_data EQU 	60h  ;PORTA DE LEITURA DE TECLADO
+	kb_ctl  EQU 	61h  ;PORTA DE RESET PARA PEDIR NOVA INTERRUPCAO
+	pictrl  EQU 	20h
+	eoi     EQU 	20h
+	int9    EQU 	9h
+	cs_dos  DW  	1
+	offset_dos  DW 	1
+	tecla_u db 		0
+	tecla   resb  	8 
+	p_i     dw  	0   ;ponteiro p/ interrupcao (qnd pressiona tecla)  
+	p_t     dw  	0   ;ponterio p/ interrupcao ( qnd solta tecla)    
+	teclasc DB  	0,0,13,10,'$'
 
 ;*******************************************************************
 segment stack stack
