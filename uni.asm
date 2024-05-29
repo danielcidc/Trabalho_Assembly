@@ -56,37 +56,37 @@ segment code
 		CALL     interface_raquete 
 		
 		;ajustando a posição da raquete no eixo XY
-		MOV     DX, [raquete_posicaoX]
+		MOV     DX, [raquete_posicaoY]
 		CMP     DX, 371
-		JB     raqueteAjustaPosicaoY
+		JB     raqueteAjustaPosicaoX
 		
-		raqueteAjustaPosicaoX:
+		raqueteAjustaPosicaoY:
 		    CALL        raqueteAjusta
         
-        raqueteAjustaPosicaoY:
-        ;Deslocamento da bola em Y (decrementa Y)
+        raqueteAjustaPosicaoX:
+        ;Deslocamento da bola em X (decrementa X)
            XOR         AX, AX
            MOV        CX, [bola_movimento]
-           MOV        CX, [bola_velocidadeY]
+           MOV        AL, [bola_velocidadeX]
            INC        AX
            CMP        AL, 0
-           JBE        bolaDecrementaY
-           ADD        word[bola_posicaoY], CX
-           JMP        bolaIncrementaX
+           JBE        bolaDecrementaX
+           ADD        word[bola_posicaoX], CX
+           JMP        bolaIncrementaY
 
-        bolaDecrementaY:
-            SUB         word[bola_posicaoY], CX 
+        bolaDecrementaX:
+            SUB         word[bola_posicaoX], CX 
         
         ; Deslocamento da posição da bola em X (incrementa e decrementa X) 
-        bolaIncrementaX:
+        bolaIncrementaY:
 			XOR			AX, AX
-			MOV			AL, [bola_velocidadeX]
+			MOV			AL, [bola_velocidadeY]
 			CMP			AL, 0
-			JS			bolaDecrementaX
-			ADD			word[bola_posicaoX], CX		
+			JS			bolaDecrementaY
+			ADD			word[bola_posicaoY], CX		
 			JMP			colisaoBR
-		bolaDecrementaX:
-			SUB			word[bola_posicaoX], CX
+		bolaDecrementaY:
+			SUB			word[bola_posicaoY], CX
 			
 		; Tratamento de colisao com a raquete e bolinha
 		colisaoBR:
@@ -112,19 +112,13 @@ segment code
 		push		cx
 		push		dx
 		
-		; Borda superior 
-		push		cx
-		push		dx
-		push		ax
-		push		dx
-				
 		; Borda esquerda 
 		push		ax
 		push		dx
 		push		ax
 		push		ax
 		
-		; Borda do meio 
+		; Borda superior
 		push		ax
 		push		dx
 		push		cx
@@ -168,158 +162,173 @@ segment code
 		
 	;---------- CONSTRUTOR DE LINHAS (responsável de desenhar as linhas na interface) ----------; 
 	line:
-	   		PUSH		BP
-			MOV		BP,SP
-			PUSHF                        ;coloca os flags na pilha
-			PUSH 		AX
-			PUSH 		BX
-			PUSH		CX
-			PUSH		DX
-			PUSH		SI
-			PUSH		DI
-			MOV		AX, [BP+10]   ; resgata os valores das coordenadas
-			MOV		BX, [BP+8]    ; resgata os valores das coordenadas
-			MOV	    CX, [BP+6]    ; resgata os valores das coordenadas
-			MOV		DX, [BP+4]    ; resgata os valores das coordenadas
-			CMP 	AX, CX
-			JE		line2
-			JB		line1
-			XCHG		AX, CX
-			XCHG		BX, DX
-			JMP		line1
-	line2:		; deltax=0
-			CMP		BX, DX  ;subtrai dx de bx
-			JB		line3
-			XCHG		BX, DX        ;troca os valores de bx e dx entre eles
-	line3:	; dx > bx
-			PUSH		AX
-			PUSH		BX
-			CALL 		plot_xy
-			CMP		BX, DX
-			JNE		line31
-			JMP		fim_line
-	line31:		INC 	BX
-			JMP		line3
-	;deltax <>0
-	line1:
-	; comparar m�dulos de deltax e deltay sabendo que cx>ax
-		; cx > ax
-			push		cx
-			sub		cx,ax
-			mov		[deltax],cx
-			pop		cx
-			push		dx
-			sub		dx,bx
-			ja		line32
-			neg		dx
-	line32:		
-			mov		[deltay],dx
-			pop		dx
+		PUSH 	BP
+	    MOV	 	BP,SP
+;Salvando o contexto, empilhando registradores		
+	    PUSHF
+		PUSH 	AX
+		PUSH 	BX
+		PUSH	CX
+		PUSH	DX
+		PUSH	SI
+		PUSH	DI
+;Resgata os valores das coordenadas	previamente definidas antes de chamar a funcao line
+		MOV		AX,[bp+10]  ;x1
+		MOV		BX,[bp+8]   ;y1 
+		MOV		CX,[bp+6]   ;x2 
+		MOV		DX,[bp+4]   ;y2
+		
+		CMP		AX,CX       ;Compare x1 with x2 
+		JE		lineV       ;Jump to Vertical Line
+		
+		JB		line1       ;Jump if x1 < x2 
+		
+		XCHG	AX,CX       ;else, exchange x1 with x2,
+		XCHG	BX,DX       ;and exchange y1 with y2,
+		JMP		line1
 
-			push		ax
-			mov		ax,[deltax]
-			cmp		ax,[deltay]
-			pop		ax
-			jb		line5
+;---------------- Vertical line ------------------------------
+lineV:		                ;DeltAX=0
+		CMP		BX,DX       ;Compare y1 with y2                   |
+		JB		lineVD      ;Jump if y1 < y2, down vertical line \|/ 
+		XCHG	BX,DX       ;else, exchange y1 with y2, up vertical line /|\        
+lineVD:	                    ;                                             |
+		PUSH	AX          ;column
+		PUSH	BX          ;row
+		CALL 	plot_xy
+		
+		CMP		BX,DX       ;Compare y1 with y2
+		JNE		IncLineV    ;if not equal, jump to increase pixel
+		JMP		End_line    ;else jump fim_line
+IncLineV:	
+        INC		BX
+		JMP		lineVD
 
-		; cx > ax e deltax>deltay
-			push		cx
-			sub		cx,ax
-			mov		[deltax],cx
-			pop		cx
-			push		dx
-			sub		dx,bx
-			mov		[deltay],dx
-			pop		dx
+;---------------- Horizotnal line ----------------------------
+;DeltAX <,=,>0
+line1:
+;Compare modulus DeltAX & Deltay due to CX > AX -> x2 > x1
+		PUSH	CX          ;Save x2 in stack
+		SUB		CX,AX       ;CX = CX-AX -> x2 = x2-x1 -> DeltAX
+		MOV		[deltax],CX ;Save deltAX
+		POP		CX          ;CX = x2
+		
+		PUSH	DX          ;Save y2 in stack		
+		SUB		DX,BX       ;DX = DX-BX -> y2 = y2-y1 -> Deltay \
+		JA		line32      ;Jump if DX > BX -> y2 > y1          \|
+		NEG		DX          ;else, invert DX                                   --
 
-			mov		si,ax
-	line4:
-			push		ax
-			push		dx
-			push		si
-			sub		si,ax	;(x-x1)
-			mov		ax,[deltay]
-			imul		si
-			mov		si,[deltax]		;arredondar
-			shr		si,1
-	; se numerador (DX)>0 soma se <0 subtrai
-			cmp		dx,0
-			jl		ar1
-			add		ax,si
-			adc		dx,0
-			jmp		arc1
-	ar1:		sub		ax,si
-			sbb		dx,0
-	arc1:
-			idiv		word [deltax]
-			add		ax,bx
-			pop		si
-			push		si
-			push		ax
-			call		plot_xy
-			pop		dx
-			pop		ax
-			cmp		si,cx
-			je		fim_line
-			inc		si
-			jmp		line4
+;y = -mx+b 
+line32:		
+		MOV		[deltay],DX ;Save deltay
+		POP		DX          ;DX = y2
 
-	line5:		cmp		bx,dx
-			jb 		line7
-			xchg		ax,cx
-			xchg		bx,dx
-	line7:
-			push		cx
-			sub		cx,ax
-			mov		[deltax],cx
-			pop		cx
-			push		dx
-			sub		dx,bx
-			mov		[deltay],dx
-			pop		dx
-			mov		si,bx
-	line6:
-			push		dx
-			push		si
-			push		ax
-			sub		si,bx	;(y-y1)
-			mov		ax,[deltax]
-			imul		si
-			mov		si,[deltay]		;arredondar
-			shr		si,1
-	; se numerador (DX)>0 soma se <0 subtrai
-			cmp		dx,0
-			jl		ar2
-			add		ax,si
-			adc		dx,0
-			jmp		arc2
-	ar2:		sub		ax,si
-			sbb		dx,0
-	arc2:
-			idiv		word [deltay]
-			mov		di,ax
-			pop		ax
-			add		di,ax
-			pop		si
-			push		di
-			push		si
-			call		plot_xy
-			pop		dx
-			cmp		si,dx
-			je		fim_line
-			inc		si
-			jmp		line6
+		PUSH	AX          ;Save x2 in stack
+		MOV		AX,[deltax] ;Compare DeltAX with DeltaY
+		CMP		AX,[deltay]
+		POP		AX          ;AX = x2
+		JB		line5       ;Jump if DeltAX < DeltaY
 
-	fim_line:
-			pop		di
-			pop		si
-			pop		dx
-			pop		cx
-			pop		bx
-			pop		ax
-			popf
-			pop		bp
-			ret		8 
+	; CX > AX e deltAX>deltay
+		PUSH	CX
+		SUB		CX,AX
+		MOV		[deltax],CX
+		POP		CX
+		PUSH	DX
+		SUB		DX,BX
+		MOV		[deltay],DX
+		POP		DX
+
+		MOV		SI,AX
+line4:
+		PUSH	AX
+		PUSH	DX
+		PUSH	SI
+		SUB		SI,AX	;(x-x1)
+		MOV		AX,[deltay]
+		IMUL		SI
+		MOV		SI,[deltax]		;arredondar
+		SHR		SI,1
+; se numerador (DX)>0 soma se <0 SUBtrai
+		cmp		DX,0
+		JL		ar1
+		ADD		AX,SI
+		ADC		DX,0
+		JMP		arc1
+ar1:	SUB		AX,SI
+		sbb		DX,0
+arc1:
+		idiv    word[deltax]
+		ADD		AX,BX
+		POP		SI
+		PUSH	SI
+		PUSH	AX
+		call	plot_xy
+		POP		DX
+		POP		AX
+		cmp		SI,CX
+		je		End_line
+		inc		SI
+		JMP		line4
+                                ;                         --
+line5:	cmp		BX,DX           ;Compare y1 with y2       /|
+		jb 		line7           ;Jump if y1 < y2 -> line /
+		xchg	AX,CX       ;else 
+		xchg	BX,DX
+line7:                          
+		PUSH	CX
+		SUB		CX,AX
+		MOV		word[deltax],CX
+		POP		CX
+		PUSH	DX
+		SUB		DX,BX
+		MOV		[deltay],DX
+		POP		DX
+
+		MOV		SI,BX
+line6:
+		PUSH	DX
+		PUSH	SI
+		PUSH	AX
+		SUB		SI,BX	;(y-y1)
+		MOV		AX,[deltax]
+		IMUL		SI          ;SIgned multiply
+		MOV		SI,[deltay]		;arredondar
+		SHR		SI,1            ;Shift operand1 Right
+		
+; se numerador (DX)>0 soma se <0 SUBtrai
+		cmp		DX,0
+		JL		ar2
+		ADD		AX,SI
+		ADC		DX,0
+		JMP		arc2
+ar2:	SUB		AX,SI
+		sbb		DX,0
+arc2:
+		idiv    word[deltay]
+		MOV		di,AX
+		POP		AX
+		ADD		di,AX
+		POP		SI
+		PUSH	di
+		PUSH	SI
+		call	plot_xy
+		POP		DX
+		cmp		SI,DX
+		je		End_line
+		inc		SI
+		JMP		line6
+
+End_line:
+		POP		DI
+		POP		SI
+		POP		DX
+		POP		CX
+		POP		BX
+		POP		AX
+		POPF
+		POP		BP
+		RET		8
 		
 		; ---------- PLOT XY (definindo os parâmetros de coordenadas) -------------------- ;
 		
@@ -541,11 +550,11 @@ segment code
 
     ;-------- ROTINA PARA AJUSTAR A RAQUETE --------;
 	raqueteAjusta:
-		MOV			byte[cor],branco
-		PUSH		word 598
-		PUSH		word 431
-		PUSH		word 601
-		PUSH		word 431
+		MOV			byte[cor],branco_intenso 
+		PUSH		word 230
+		PUSH		word 23
+		PUSH		word 281
+		PUSH		word 53
 		CALL 		line
 		RET
 		
@@ -815,10 +824,10 @@ segment data
 	modo_velocidade    dw    9999h
 	
 ;---- Variáveis para a raquete ----;
-    raquete_posicaoX    dw    320
+    raquete_posicaoX    dw    278
 	raquete_posicaoYASCII	db	'000'
-	raquete_posicaoY        dw  48 
-	raquete_tamanho		    equ	50
+	raquete_posicaoY        dw  23
+	raquete_tamanho		    equ	30
 	raquete_velocidade		db  0
 	raquete_movimento		db  10
 	raquete_checa			db  0
