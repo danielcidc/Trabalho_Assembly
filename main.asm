@@ -1,91 +1,248 @@
-;-----------------------------------------------------------------------------------;
-;             PROJETO BREAKER PONG - SISTEMAS EMBARCADOS I (ELE 8575)               ;
-;                                                                                   ;
-; Dupla: DANIEL CID CONSTANTINIDIS e DARUÊ EUZEBIO FERNANDES                        ;
-; Professor: CAMILO ARTURO RODRIGUEZ DIAZ                                           ;
-; Curso: ENGENHARIA ELÉTRICA                                                        ;
-;                                                                                   ;
-;-----------------------------------------------------------------------------------;
-; Descrição:                                                                        ;
-;        O projeto consiste num jogo de ping-pong (quebrando blocos), onde o        ;
-;        usuário pode ou não deixar cair a bola fora da região de jogo - "fora      ;
-;        de tela". A dificuldade do jogo vai ser fixa. Essa primeira interface      ;
-;        com o usuário vai ficar fixa até começar o jogo. A tecla Enter será        ;
-;        usada para dar início ao jogo. Durante o jogo, o jogador poderá pausar     ;
-;        o jogo (tecla p) durante tempo indefinido. Depois da tecla "p" ser         ;
-;        acionada de novo, o jogo continuará sua execução normalmente. Se a letra   ;
-;        "q" for pressionada o jogo fecha. No caso que o jogador deixa cair a       ;
-;        bola "fora de tela", uma mensagem/imagem "Game Over" tem que aparecer e    ;
-;        perguntar ao usuário se quer reiniciar a partida ou sair do jogo com as    ;
-;        teclas "y" para continuar e "n". O objetivo é quebrar os blocos a cada     ;
-;        contato com a bola. Uma matriz de 6x2 forma os blocos uniformemente        ;
-;        distribuídos. Uma vez destruídos os blocos o jogo finaliza.   		        ;
-;                                                                                   ; 
-;        Os requerimentos da interface são:                                         ;    
-;                                                                                   ;    
-;        1) A bola vai percorrer sempre a tela com ângulos de 45 graus, sem         ;
-;          retornar à direção que ela vem.                                          ;
-;        2) O controle da base será feito com as setas direita e esquerda.          ;                                
-;        3) Uma quadrícula da tela será feita para limitar as paredes (direita,     ;
-;           superior, esquerda). A parte inferior só terá a base onde a bola vai    ;
-;           quicar (retângulo).		                                                ;
-;        4) O jogo pode ser finalizado em qualquer momento com a tecla "q".         ;                    
-;        5) O jogo pode ser pausado em qualquer momento com a tecla "p".            ;
-;        6) O jogo finaliza quando todos os blocos sejam quebrados (2 filas x 6     ;
-;           colunas). A cada contato da bola com o bloco, ele é deletado e deve     ;
-;           ser atualizado o limite superior onde a bola vai quicar, ou seja, se    ;
-;           a bola percorrer o mesmo caminho, esta deve ser capaz de atingir o      ;
-;           bloco da primeira fila (bloco vermelho ou azul) e "quebrar" ele.		;
-;                                     												;
-;-----------------------------------------------------------------------------------;
+; versão de 18/10/2022
+; Uso de diretivas extern e global 
+; Professor Camilo Diaz
 
-extern line, full_circle, cursor, caracter, plot_xy 
+extern line, full_circle, circle, cursor, caracter, plot_xy, full_rec
 global cor
 
 segment code
 
 ;org 100h
 ..start:
+        MOV     AX,data			;Inicializa os registradores
+    	MOV 	DS,AX
+    	MOV 	AX,stack
+    	MOV 	SS,AX
+    	MOV 	SP,stacktop
 
-    MOV     AX, data        ;Inicializa os registradores
-	MOV     DX, AX
-	MOV     AX, stack
-	MOV     SS, AX
-	MOV     SP, stacktop
-	
-    ;Reprogramando a tabela de Interrupção
-	CLI
+;Salvar modo corrente de video(vendo como esta o modo de video da maquina)
+        MOV  	AH,0Fh
+    	INT  	10h
+    	MOV  	[modo_anterior],AL   
 
-    XOR     AX, AX
-    MOV     ES, AX
+;Alterar modo de video para grafico 640x480 16 cores
+    	MOV     AL,12h
+   		MOV     AH,0
+    	INT     10h
+		
+;desenhar retas
+       
+		MOV		byte [cor],branco_intenso	;linha
+		MOV		AX,9		;x1
+		PUSH	AX
+		MOV		AX,9		;y1
+		PUSH	AX
+		MOV		AX,9		;x2
+		PUSH	AX
+		MOV		AX,470		;y2
+		PUSH	AX
+		CALL	line
+				
+		MOV		AX,9		;x1
+		PUSH	AX
+		MOV		AX,470		;y1
+		PUSH	AX
+		MOV		AX,631		;x2
+		PUSH	AX
+		MOV		AX,470		;y2
+		PUSH	AX
+		CALL	line
+		
+		MOV		AX,631		;x1
+		PUSH	AX
+		MOV		AX,470		;y1
+		PUSH	AX
+		MOV		AX,631		;x2
+		PUSH	AX
+		MOV		AX,9		;y2
+		PUSH	AX
+		CALL	line
+		
+;-----------------------------------------------------------------------------------------
+;Bloco 1
+MOV     byte [cor],magenta
+        MOV		AX,19		;x (inferior esquerda)
+        PUSH    AX
+        MOV		AX,430		;y (inferior esquerda)
+        PUSH    AX
+        MOV		AX,25		;altura
+        PUSH    AX
+        MOV		AX,85		;largura
+        PUSH    AX
+        CALL    full_rec
+;-----------------------------------------------------------------------------------------
+;Bloco 2
+MOV     byte [cor],azul
+        MOV		AX,121		;x (inferior esquerda)
+        PUSH    AX
+        MOV		AX,430		;y (inferior esquerda)
+        PUSH    AX
+        MOV		AX,25		;altura
+        PUSH    AX
+        MOV		AX,85		;largura
+        PUSH    AX
+        CALL    full_rec
+;-----------------------------------------------------------------------------------------
+;Bloco 3
+MOV     byte [cor],cyan
+        MOV		AX,223		;x (inferior esquerda)
+        PUSH    AX
+        MOV		AX,430		;y (inferior esquerda)
+        PUSH    AX
+        MOV		AX,25		;altura
+        PUSH    AX
+        MOV		AX,85		;largura
+        PUSH    AX
+        CALL    full_rec
+;-----------------------------------------------------------------------------------------
+;Bloco 4
+MOV     byte [cor],verde_claro
+        MOV		AX,325		;x (inferior esquerda)
+        PUSH    AX
+        MOV		AX,430		;y (inferior esquerda)
+        PUSH    AX
+        MOV		AX,25		;altura
+        PUSH    AX
+        MOV		AX,85		;largura
+        PUSH    AX
+        CALL    full_rec
+;-----------------------------------------------------------------------------------------
+;Bloco 5
+MOV     byte [cor],amarelo
+        MOV		AX,427		;x (inferior esquerda)
+        PUSH    AX
+        MOV		AX,430		;y (inferior esquerda)
+        PUSH    AX
+        MOV		AX,25		;altura
+        PUSH    AX
+        MOV		AX,85		;largura
+        PUSH    AX
+        CALL    full_rec
+;-----------------------------------------------------------------------------------------
+;Bloco 6
+MOV     byte [cor],vermelho
+        MOV		AX,529		;x (inferior esquerda)
+        PUSH    AX
+        MOV		AX,430		;y (inferior esquerda)
+        PUSH    AX
+        MOV		AX,25		;altura
+        PUSH    AX
+        MOV		AX,85		;largura
+        PUSH    AX
+        CALL    full_rec
+;-----------------------------------------------------------------------------------------
 
-    MOV     AX, [ES:int9*4]
-	MOV     [offset_dos], AX
-	MOV     AX, [ES:int9*4+2]
-	MOV     [cs_dos], AX
-	
-	MOV     [ES:int9*4+2], CS
-	MOV     WORD [ES:int9*4],keyint
+;Bloco 7
+MOV     byte [cor],vermelho
+        MOV		AX,19		;x (inferior esquerda)
+        PUSH    AX
+        MOV		AX,390		;y (inferior esquerda)
+        PUSH    AX
+        MOV		AX,25		;altura
+        PUSH    AX
+        MOV		AX,85		;largura
+        PUSH    AX
+        CALL    full_rec
+;-----------------------------------------------------------------------------------------
+;Bloco 8
+MOV     byte [cor],amarelo
+        MOV		AX,121		;x (inferior esquerda)
+        PUSH    AX
+        MOV		AX,390		;y (inferior esquerda)
+        PUSH    AX
+        MOV		AX,25		;altura
+        PUSH    AX
+        MOV		AX,85		;largura
+        PUSH    AX
+        CALL    full_rec
+;-----------------------------------------------------------------------------------------
+;Bloco 9
+MOV     byte [cor],verde_claro
+        MOV		AX,223		;x (inferior esquerda)
+        PUSH    AX
+        MOV		AX,390		;y (inferior esquerda)
+        PUSH    AX
+        MOV		AX,25		;altura
+        PUSH    AX
+        MOV		AX,85		;largura
+        PUSH    AX
+        CALL    full_rec
+;-----------------------------------------------------------------------------------------
+;Bloco 10
+MOV     byte [cor],cyan
+        MOV		AX,325		;x (inferior esquerda)
+        PUSH    AX
+        MOV		AX,390		;y (inferior esquerda)
+        PUSH    AX
+        MOV		AX,25		;altura
+        PUSH    AX
+        MOV		AX,85		;largura
+        PUSH    AX
+        CALL    full_rec
+;-----------------------------------------------------------------------------------------
+;Bloco 11
+MOV     byte [cor],azul
+        MOV		AX,427		;x (inferior esquerda)
+        PUSH    AX
+        MOV		AX,390		;y (inferior esquerda)
+        PUSH    AX
+        MOV		AX,25		;altura
+        PUSH    AX
+        MOV		AX,85		;largura
+        PUSH    AX
+        CALL    full_rec
+;-----------------------------------------------------------------------------------------
+;Bloco 12
+MOV     byte [cor],magenta
+        MOV		AX,529		;x (inferior esquerda)
+        PUSH    AX
+        MOV		AX,390		;y (inferior esquerda)
+        PUSH    AX
+        MOV		AX,25		;altura
+        PUSH    AX
+        MOV		AX,85		;largura
+        PUSH    AX
+        CALL    full_rec
+;-----------------------------------------------------------------------------------------
 
-    ;Salvar o modo corrente de vídeo (vendo como está o modo de vídeo na máquina)
-    MOV     AH, 0Fh
-    INT     10h
-    MOV     [modo_anterior], AL
 
-    ;Alterar modo de vídeo para gráfico 640x480 16 cores
-    MOV    AL, 12h
-    MOV    AH, 0
-    INT    10h
-	
-	;Inicialização da interface gráfica
-	MOV     byte[cor], branco_intenso 
-	
-	CALL     interface_bordas
-	MOV     byte[cor], vermelho 
-	CALL     interface_raquete
-	CALL     interface_bolinha 
+;desenha bolinha
+		MOV		byte [cor],vermelho			
+		MOV		AX,320						;x
+		PUSH	AX
+		MOV		AX,40						;y
+		PUSH	AX
+		MOV		AX,14						;r
+		PUSH	AX
+		CALL	full_circle
+		
+;-----------------------------------------------------------------------------------------
+		
+;desenha raquete
+        MOV     byte [cor], branco_intenso
+		MOV     AX,292       ;x (inferior esquerda)
+		PUSH    AX
+		MOV     AX,21        ;y (inferior esquerda)
+		PUSH    AX
+		MOV     AX,5         ;altura
+		PUSH    AX
+		MOV     AX,56        ;largura
+		PUSH    AX
+		CALL    full_rec
 
-    
+;-----------------------------------------------------------------------------------------
+		
+
+
+		MOV    	AH,08h
+		INT     21h
+	    MOV  	AH,0   						; set video mode
+	    MOV  	AL,[modo_anterior]   		; modo anterior
+	    INT  	10h
+		MOV     AX,4c00h
+		INT     21h
+		
+
 
 ;*******************************************************************
 
@@ -109,7 +266,7 @@ cor		db		branco_intenso
 ;	1 1 0 0 rosa
 ;	1 1 0 1 magenta claro
 ;	1 1 1 0 amarelo
-;	1 1 1 1 branco intenso	
+;	1 1 1 1 branco intenso
 
 preto		    equ		0
 azul		    equ		1
@@ -128,7 +285,14 @@ magenta_claro	equ		13
 amarelo		    equ		14
 branco_intenso	equ		15
 
-;*******************************************************************
+modo_anterior	db		0
+linha   	    dw  	0
+coluna  	    dw  	0
+deltax		    dw		0
+deltay		    dw		0	
+mens    	    db  	'Funcao Grafica SE_I $' 
+
+;*************************************************************************
 segment stack stack
-            resb        512
+		DW 		512
 stacktop:
